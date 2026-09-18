@@ -9,6 +9,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
+      // Pinned: the app calls /api/... on its own origin, so a silent fall back
+      // to 5174 when 5173 is busy leaves an already-open tab talking to a dead
+      // port. Fail loudly instead.
+      port: 5173,
+      strictPort: true,
       // The app calls /api/... on its own origin; the dev server forwards that
       // to the PDF backend, so there is no hardcoded host and no CORS in dev.
       proxy: {
