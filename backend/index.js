@@ -1,5 +1,10 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import express from 'express';
 import cors from 'cors';
+import { rateLimit } from 'express-rate-limit';
 import PDFDocument from 'pdfkit';
 
 import {
@@ -15,10 +20,32 @@ import {
 } from './md2pdf.js';
 
 const app = express();
-app.use(cors({ origin: true, exposedHeaders: ['Content-Disposition', 'X-Pdf-Warnings'] }));                     
-app.use(express.json({ limit: '2mb' })); 
 
-app.post('/api/generatePDF', async (req, res) => {
+// Rendering is CPU-bound and can fetch remote images, so the endpoint is the
+// expensive part of this server: cap how hard a single client can lean on it.
+const MAX_BODY = process.env.PDF_MAX_BODY || '2mb';
+const RENDER_TIMEOUT_MS = Number(process.env.PDF_TIMEOUT_MS || 20000);
+
+const limiter = rateLimit({
+  windowMs: Number(process.env.PDF_RATE_WINDOW_MS || 60_000),
+  limit: Number(process.env.PDF_RATE_MAX || 60),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many requests - please slow down' }
+});
+
+app.use(cors({ origin: true, exposedHeaders: ['Content-Disposition', 'X-Pdf-Warnings'] }));
+app.use(express.json({ limit: MAX_BODY }));
+
+app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+app.post('/api/generatePDF', limiter, async (req, res) => {
+  // Never let one document tie the connection up forever: a slow image host or
+  // a pathological table should fail cleanly rather than hang.
+  const timer = setTimeout(() => {
+    if (!res.headersSent) res.status(504).json({ error: 'Rendering timed out' });
+  }, RENDER_TIMEOUT_MS);
+
   try {
     const {
       md,
@@ -85,6 +112,8 @@ app.post('/api/generatePDF', async (req, res) => {
       res.setHeader('X-Pdf-Warnings', Buffer.from(JSON.stringify(allWarnings), 'utf8').toString('base64'));
     }
 
+    if (res.headersSent) return;          // the timeout already answered
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${outName}"`);
     res.setHeader('Content-Length', pdf.length);
@@ -92,11 +121,23 @@ app.post('/api/generatePDF', async (req, res) => {
 
   } catch (err) {
     console.error(err);
-    // If headers already sent, cannot send JSON—just end.
+    // The PDF is buffered, so a failure can still be reported as JSON.
     if (!res.headersSent) res.status(500).json({ error: 'Failed to generate PDF' });
     else res.end();
+  } finally {
+    clearTimeout(timer);
   }
 });
+
+// In a container the built editor sits next to this file and is served from the
+// same origin, so the browser calls /api/generatePDF with no CORS involved.
+// In development Vite serves the app instead and proxies /api here.
+const staticDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
+if (fs.existsSync(staticDir)) {
+  app.use(express.static(staticDir));
+  app.get(/^(?!\/api\/).*/, (_req, res) => res.sendFile(path.join(staticDir, 'index.html')));
+  console.log(`serving the editor from ${staticDir}`);
+}
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`PDF server listening on http://localhost:${PORT}`));

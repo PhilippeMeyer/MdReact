@@ -26,3 +26,8 @@ dist-ssr
 
 # Generated demo output from backend/md2pdf.js
 markdown-styled.pdf
+
+# local environment overrides (.env.example is committed)
+.env
+.env.*
+!.env.example

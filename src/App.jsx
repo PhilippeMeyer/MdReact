@@ -3,7 +3,10 @@ import MDEditor from '@uiw/react-md-editor';
 import remarkFrontmatter from 'remark-frontmatter';
 import './App.css'
 
-const API = 'http://localhost:4000/api/generatePDF';
+// Same-origin by default: the Vite dev server proxies /api to the PDF backend
+// (see vite.config.js), and in production the two are served together. Set
+// VITE_API_URL to call a backend on another host.
+const API = import.meta.env.VITE_API_URL || '/api/generatePDF';
 const DRAFT_KEY = 'mdreact:draft';
 const PREVIEW_DEBOUNCE_MS = 700;
 

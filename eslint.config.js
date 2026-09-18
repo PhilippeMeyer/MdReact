@@ -27,8 +27,8 @@ export default defineConfig([
     },
   },
   {
-    // The PDF server is Node, not browser: it needs Node globals and top-level await.
-    files: ['backend/**/*.js'],
+    // Node-side files (the PDF server, the Vite config): Node globals, top-level await.
+    files: ['backend/**/*.js', 'vite.config.js'],
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.node,

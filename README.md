@@ -6,12 +6,28 @@ The app features MDEditor to edit the md source and calls the server to produce 
 ## Running it
 
 ```bash
-npm install && npm run dev       # editor on http://localhost:5173
-cd backend && npm install && npm run dev   # PDF server on http://localhost:4000
+npm install && npm --prefix backend install
+npm run dev        # editor on http://localhost:5173, PDF server on :4000
+npm test           # the renderer's test suite
 ```
 
-The backend's `dev` script runs under nodemon, so it restarts when a `.js` file
-changes; `npm start` runs it once without the watcher.
+`npm run dev` starts both halves together; `dev:web` and `dev:pdf` run them
+separately. The backend runs under nodemon, so it restarts when a `.js` file
+changes (`npm --prefix backend start` runs it once without the watcher).
+
+The editor calls `/api/...` on its own origin - the Vite dev server proxies
+that to the backend, so there is no hardcoded host and no CORS in development.
+Point it elsewhere with `VITE_PDF_SERVER` (see `.env.example`).
+
+### Docker
+
+```bash
+docker compose up --build     # everything on http://localhost:4000
+```
+
+The image builds the editor and serves it from the PDF server, so the whole app
+is one container and one origin. Rate limit, timeout and body size are tunable
+through the environment (`PDF_RATE_MAX`, `PDF_TIMEOUT_MS`, `PDF_MAX_BODY`).
 
 `node backend/md2pdf.js` renders a self-contained demo to `markdown-styled.pdf`.
 
@@ -68,6 +84,13 @@ Anything not set in front matter falls back to the request body
 - The download button shows the filename the document has chosen for itself.
 - Warnings (an image that could not be loaded, an unknown page size) appear in
   the status line rather than only in the server log.
+
+## Tests
+
+`npm test` runs the renderer's suite (`backend/test/`) on Node's built-in test
+runner - no framework. It asserts that every block token `marked` can emit
+actually reaches the page, the check the original renderer lacked when lists
+and blockquotes were being dropped silently.
 
 ## Markdown supported
 

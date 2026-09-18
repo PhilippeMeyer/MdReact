@@ -1,0 +1,12 @@
+services:
+  mdreact:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      # see backend/index.js for what these tune
+      PDF_RATE_MAX: "60"
+      PDF_RATE_WINDOW_MS: "60000"
+      PDF_TIMEOUT_MS: "20000"
+      PDF_MAX_BODY: "2mb"
+    restart: unless-stopped

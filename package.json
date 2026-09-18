@@ -4,9 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -n web,pdf -c cyan,magenta \"vite\" \"npm --prefix backend run dev\"",
+    "dev:web": "vite",
+    "dev:pdf": "npm --prefix backend run dev",
     "build": "vite build",
     "lint": "eslint .",
+    "test": "npm --prefix backend test",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -24,6 +27,7 @@
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^10.0.5",
     "eslint": "^9.33.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
