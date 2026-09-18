@@ -19,6 +19,17 @@ The editor calls `/api/...` on its own origin - the Vite dev server proxies
 that to the backend, so there is no hardcoded host and no CORS in development.
 Point it elsewhere with `VITE_PDF_SERVER` (see `.env.example`).
 
+Because of that, the dev server is pinned to **port 5173** (`strictPort` in
+`vite.config.js`). If the port is busy, `npm run dev` fails with an error
+rather than quietly starting on 5174 - which would leave an already-open tab
+posting to a port with nothing behind it, so the editor still renders but every
+PDF request fails. Free the port and start again:
+
+```bash
+ss -ltnp | grep 5173      # find what is holding it
+kill <pid>
+```
+
 ### Docker
 
 ```bash
